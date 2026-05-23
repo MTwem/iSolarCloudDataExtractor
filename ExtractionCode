@@ -1,0 +1,58 @@
+(async function() {
+    const results = [];
+    const leftArrow = document.querySelector('.icon-a-G2_Leftarrow_20');
+    const dateDisplay = document.querySelector('.time-show'); // Shows the current date text
+    
+    if (!leftArrow || !dateDisplay) {
+        console.error("Could not find the arrow or date text. Make sure you are on the Day view.");
+        return;
+    }
+
+    // We keep clicking left until we see "Apr/2021" or until we hit 2000 clicks (safety)
+    let safetyCounter = 0;
+    
+    console.log("%c >>> STARTING ARROW-CLICK EXTRACTION <<< ", "background: #222; color: #00ff00; font-size: 16px;");
+
+    while (safetyCounter < 2000) {
+        const currentDateStr = dateDisplay.innerText.trim();
+        console.log(`Processing: ${currentDateStr}`);
+
+        // 1. Scrape the table for the current date
+        const headers = Array.from(document.querySelectorAll('.el-table__header th')).map(th => th.innerText.trim()).filter(t => t);
+        const rows = Array.from(document.querySelectorAll('.el-table__body tr')).map(tr => {
+            const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim());
+            const obj = Object.fromEntries(headers.map((h, i) => [h, cells[i]]));
+            obj.capturedDate = currentDateStr;
+            return obj;
+        });
+
+        if (rows.length > 0) {
+            results.push(...rows);
+        }
+
+        // 2. CHECK: If we reached April 2021, we stop.
+        if (currentDateStr.includes('Apr/2021') && currentDateStr.startsWith('01/')) {
+            console.log("Reached April 1, 2021. Stopping!");
+            break;
+        }
+
+        // 3. Click the Left Arrow to go to the previous day
+        leftArrow.click();
+        
+        // 4. Wait for the data to load
+        // (Arrow clicks usually trigger an immediate request)
+        await new Promise(r => setTimeout(r, 3500));
+
+        safetyCounter++;
+        
+        // Optional: Save every 50 days
+        if (safetyCounter % 50 === 0) {
+            console.log(`Progress: ${safetyCounter} days collected...`);
+        }
+    }
+
+    // Final download
+    console.log("Saving result...");
+    const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `solar_data_arrow_method.json`; a.click();
+})();
